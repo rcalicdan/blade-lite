@@ -6,7 +6,10 @@
     "autoload": {
         "psr-4": {
             "Rcalicdan\\BladeLite\\": "src/"
-        }
+        },
+        "files": [
+            "src/functions.php"
+        ]
     },
     "minimum-stability": "dev",
     "require": {
