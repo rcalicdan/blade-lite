@@ -1,6 +1,6 @@
 <?php
 
-namespace Rcalicdan\Ci4Larabridge\Blade;
+namespace Rcalicdan\BladeLite;
 
 use Rcalicdan\Blade\Blade;
 use Rcalicdan\Blade\Container as BladeContainer;

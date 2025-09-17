@@ -1,6 +1,6 @@
 <?php
 
-namespace Rcalicdan\Ci4Larabridge\Blade;
+namespace Rcalicdan\BladeLite;
 
 /**
  * Blade View Renderer with zero-setup initialization

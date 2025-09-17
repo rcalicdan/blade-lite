@@ -1,7 +1,7 @@
 <?php
 
-use Rcalicdan\Ci4Larabridge\Blade\BladeService;
-use Rcalicdan\Ci4Larabridge\Blade\BladeViewRenderer;
+use Rcalicdan\BladeLite\BladeService;
+use Rcalicdan\BladeLite\BladeViewRenderer;
 use Rcalicdan\Ci4Larabridge\Config\ConfigLoader;
 
 if (!function_exists('blade_view')) {

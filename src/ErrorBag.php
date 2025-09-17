@@ -1,6 +1,6 @@
 <?php
 
-namespace Rcalicdan\Ci4Larabridge\Blade;
+namespace Rcalicdan\BladeLite;
 
 /**
  * Framework-agnostic ErrorBag for validation errors in Blade templates
