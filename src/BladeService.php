@@ -28,6 +28,8 @@ class BladeService
 
     protected function initialize(): void
     {
+        // Ensure we have valid paths before proceeding
+        $this->validatePaths();
         $this->ensureCacheDirectory();
 
         $container = new BladeContainer();
@@ -38,27 +40,113 @@ class BladeService
             $container
         );
 
-        if (is_dir($this->config['componentPath'])) {
+        // Only add component namespace if path exists and is valid
+        if (!empty($this->config['componentPath']) && is_dir($this->config['componentPath'])) {
             $this->blade->addNamespace(
                 $this->config['componentNamespace'],
                 $this->config['componentPath']
             );
         }
         
+        // Add other namespaces if they exist
         foreach ($this->config['namespaces'] as $namespace => $path) {
-            if (is_dir($path)) {
+            if (!empty($path) && is_dir($path)) {
                 $this->blade->addNamespace($namespace, $path);
             }
         }
+    }
+
+    protected function validatePaths(): void
+    {
+        if (empty($this->config['viewsPath'])) {
+            $this->config['viewsPath'] = $this->getDefaultViewsPath();
+        }
+
+        if (empty($this->config['cachePath'])) {
+            $this->config['cachePath'] = $this->getDefaultCachePath();
+        }
+
+        if (empty($this->config['componentPath'])) {
+            $this->config['componentPath'] = $this->config['viewsPath'] . '/components';
+        }
+
+        if (!is_dir($this->config['viewsPath'])) {
+            if (!mkdir($this->config['viewsPath'], 0755, true)) {
+                throw new \RuntimeException("Cannot create views directory: {$this->config['viewsPath']}");
+            }
+        }
+
+        if (!is_dir($this->config['componentPath'])) {
+            mkdir($this->config['componentPath'], 0755, true);
+        }
+    }
+
+    protected function getDefaultViewsPath(): string
+    {
+        $candidates = [
+            getcwd() . '/views',
+            getcwd() . '/templates',
+            getcwd() . '/resources/views',
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_dir($path)) {
+                return $path;
+            }
+        }
+
+        // Create default views directory
+        $defaultPath = getcwd() . '/views';
+        if (!is_dir($defaultPath)) {
+            mkdir($defaultPath, 0755, true);
+        }
+
+        return $defaultPath;
+    }
+
+    protected function getDefaultCachePath(): string
+    {
+        $candidates = [
+            getcwd() . '/cache/blade',
+            getcwd() . '/storage/cache/blade',
+            getcwd() . '/tmp/blade',
+        ];
+
+        foreach ($candidates as $path) {
+            $dir = dirname($path);
+            if (is_writable($dir) || @mkdir($dir, 0755, true)) {
+                if (!is_dir($path)) {
+                    @mkdir($path, 0755, true);
+                }
+                if (is_writable($path)) {
+                    return $path;
+                }
+            }
+        }
+
+        // Use system temp directory as fallback
+        $tempPath = sys_get_temp_dir() . '/blade_cache_' . md5(getcwd());
+        if (!is_dir($tempPath)) {
+            mkdir($tempPath, 0755, true);
+        }
+
+        return $tempPath;
     }
 
     protected function ensureCacheDirectory(): void
     {
         $cachePath = $this->config['cachePath'];
 
+        // Double check we have a valid cache path
+        if (empty($cachePath)) {
+            throw new \RuntimeException("Cache path cannot be empty");
+        }
+
         if (!isset($this->fileExistsCache[$cachePath])) {
             if (!is_dir($cachePath)) {
-                mkdir($cachePath, 0755, true);
+                if (!mkdir($cachePath, 0755, true)) {
+                    throw new \RuntimeException("Cannot create cache directory: {$cachePath}");
+                }
             }
             $this->fileExistsCache[$cachePath] = true;
         }
@@ -78,8 +166,10 @@ class BladeService
         $this->bladeExtension->registerDirectives($this->blade);
         
         // Register custom directives from config
-        foreach ($this->config['customDirectives'] as $name => $callback) {
-            $this->blade->directive($name, $callback);
+        if (!empty($this->config['customDirectives'])) {
+            foreach ($this->config['customDirectives'] as $name => $callback) {
+                $this->blade->directive($name, $callback);
+            }
         }
 
         $this->extensionsLoaded = true;
