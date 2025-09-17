@@ -3,73 +3,93 @@
 namespace Rcalicdan\BladeLite\Config;
 
 /**
- * Simplified configuration loader - explicit config only, no auto-discovery
+ * A robust, self-configuring loader that finds the project root
+ * by searching for the 'vendor' directory, ensuring paths are always correct.
  */
 class ConfigLoader
 {
     protected static ?array $config = null;
-    
-    /**
-     * Load configuration from file with custom overrides
-     */
+    protected static ?string $rootPath = null;
+
     public static function load(array $customConfig = []): array
     {
         if (self::$config !== null && empty($customConfig)) {
             return self::$config;
         }
 
-        $fileConfig = self::loadConfigFile();
+        $rootPath = self::findProjectRoot();
+        $defaults = self::getDefaultConfig($rootPath);
+        $fileConfig = self::loadConfigFile($rootPath);
         
-        self::$config = array_merge($fileConfig, $customConfig);
+        $mergedConfig = array_replace_recursive($defaults, $fileConfig, $customConfig);
+        
+        self::$config = $mergedConfig;
         
         self::applyEnvironmentOverrides();
+        self::validateRequiredPaths(self::$config);
         
         return self::$config;
     }
-    
-    /**
-     * Load configuration from file
-     */
-    protected static function loadConfigFile(): array
+
+    protected static function findProjectRoot(): string
     {
-        $configFile = self::findConfigFile();
+        if (self::$rootPath !== null) {
+            return self::$rootPath;
+        }
+
+        $dir = __DIR__;
+        for ($i = 0; $i < 10; $i++) {
+            if (is_dir($dir . '/vendor')) {
+                return self::$rootPath = $dir;
+            }
+            $parentDir = dirname($dir);
+            if ($parentDir === $dir) {
+                break;
+            }
+            $dir = $parentDir;
+        }
+
+        throw new \RuntimeException('Could not find the project root. The `vendor` directory is missing.');
+    }
+
+    protected static function loadConfigFile(string $rootPath): array
+    {
+        $configFile = $rootPath . '/config/blade.php';
         
-        if ($configFile && is_readable($configFile)) {
-            return require $configFile;
+        if (!file_exists($configFile)) {
+            throw new \RuntimeException("Blade configuration file not found at: {$configFile}");
+        }
+        if (!is_readable($configFile)) {
+            throw new \RuntimeException("Blade configuration file is not readable: {$configFile}");
         }
         
-        return self::getDefaultConfig();
+        $config = require $configFile;
+        return is_array($config) ? $config : [];
     }
     
-    /**
-     * Find configuration file
-     */
-    protected static function findConfigFile(): ?string
+    protected static function validateRequiredPaths(array $config): void
     {
-        $candidates = [
-            getcwd() . '/config/blade.php',
-            dirname(__DIR__, 2) . '/config/blade.php', 
-        ];
-        
-        foreach ($candidates as $candidate) {
-            if (file_exists($candidate)) {
-                return $candidate;
+        $requiredPaths = ['viewsPath', 'cachePath'];
+        foreach ($requiredPaths as $key) {
+            if (empty($config[$key]) || !is_string($config[$key])) {
+                throw new \InvalidArgumentException(
+                    "Configuration value for '{$key}' must be a non-empty string. Please check your 'config/blade.php'."
+                );
             }
         }
-        
-        return null;
     }
     
     /**
-     * Get basic default configuration
+     * Gets default values for non-critical settings.
+     * Critical paths are set to null to ensure they are defined in the config file.
      */
-    protected static function getDefaultConfig(): array
+    protected static function getDefaultConfig(string $rootPath): array
     {
         return [
-            'viewsPath' => getcwd() . '/views',
-            'cachePath' => sys_get_temp_dir() . '/blade_cache',
+            'viewsPath' => null,
+            'cachePath' => null,
+            'componentPath' => null,
             'componentNamespace' => 'components',
-            'componentPath' => getcwd() . '/views/components',
             'namespaces' => [],
             'debug' => true,
             'autoReload' => true,
@@ -93,42 +113,29 @@ class ConfigLoader
             'environments' => [],
         ];
     }
-    
-    /**
-     * Apply environment-specific overrides
-     */
+
     protected static function applyEnvironmentOverrides(): void
     {
-        if (!isset(self::$config['environments'])) {
-            return;
-        }
+        if (!isset(self::$config['environments'])) return;
         
         $environment = self::getCurrentEnvironment();
         
         if (isset(self::$config['environments'][$environment])) {
             $envOverrides = self::$config['environments'][$environment];
-            self::$config = array_merge_recursive(self::$config, $envOverrides);
+            self::$config = array_replace_recursive(self::$config, $envOverrides);
         }
     }
     
-    /**
-     * Get current environment
-     */
     protected static function getCurrentEnvironment(): string
     {
         return $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'development';
     }
-    
-    /**
-     * Get a configuration value using dot notation
-     */
+
     public static function get(string $key, $default = null)
     {
         $config = self::load();
-        
         $keys = explode('.', $key);
         $value = $config;
-        
         foreach ($keys as $segment) {
             if (is_array($value) && array_key_exists($segment, $value)) {
                 $value = $value[$segment];
@@ -136,15 +143,12 @@ class ConfigLoader
                 return $default;
             }
         }
-        
         return $value;
     }
-    
-    /**
-     * Reset configuration cache
-     */
+
     public static function reset(): void
     {
         self::$config = null;
+        self::$rootPath = null;
     }
 }

@@ -7,7 +7,7 @@ use Rcalicdan\Blade\Container as BladeContainer;
 use Rcalicdan\BladeLite\Config\ConfigLoader;
 
 /**
- * Enhanced BladeService with file-based configuration support
+ * BladeService that relies on a validated configuration from ConfigLoader.
  */
 class BladeService
 {
@@ -15,7 +15,6 @@ class BladeService
     protected array $config;
     protected BladeExtension $bladeExtension;
     protected array $viewData = [];
-    protected array $fileExistsCache = [];
     protected bool $extensionsLoaded = false;
 
     public function __construct(array $customConfig = [])
@@ -27,8 +26,7 @@ class BladeService
 
     protected function initialize(): void
     {
-        $this->validatePaths();
-        $this->ensureCacheDirectory();
+        $this->ensureDirectoriesExist();
 
         $container = new BladeContainer();
 
@@ -52,116 +50,51 @@ class BladeService
         }
     }
 
-    protected function validatePaths(): void
+    /**
+     * Ensures the configured directories exist.
+     */
+    protected function ensureDirectoriesExist(): void
     {
-        if (empty($this->config['viewsPath'])) {
-            $this->config['viewsPath'] = $this->getDefaultViewsPath();
-        }
-
-        if (empty($this->config['cachePath'])) {
-            $this->config['cachePath'] = $this->getDefaultCachePath();
-        }
-
-        if (empty($this->config['componentPath'])) {
-            $this->config['componentPath'] = $this->config['viewsPath'] . '/components';
-        }
-
-        if (!is_dir($this->config['viewsPath'])) {
-            if (!mkdir($this->config['viewsPath'], 0755, true)) {
-                throw new \RuntimeException("Cannot create views directory: {$this->config['viewsPath']}");
-            }
-        }
-
-        if (!is_dir($this->config['componentPath'])) {
-            mkdir($this->config['componentPath'], 0755, true);
-        }
-    }
-
-    protected function getDefaultViewsPath(): string
-    {
-        $candidates = [
-            getcwd() . '/views',
-            getcwd() . '/templates',
-            getcwd() . '/resources/views',
-        ];
-
-        foreach ($candidates as $path) {
-            if (is_dir($path)) {
-                return $path;
-            }
-        }
-
-        // Create default views directory
-        $defaultPath = getcwd() . '/views';
-        if (!is_dir($defaultPath)) {
-            mkdir($defaultPath, 0755, true);
-        }
-
-        return $defaultPath;
-    }
-
-    protected function getDefaultCachePath(): string
-    {
-        $candidates = [
-            getcwd() . '/cache/blade',
-            getcwd() . '/storage/cache/blade',
-            getcwd() . '/tmp/blade',
-        ];
-
-        foreach ($candidates as $path) {
-            $dir = dirname($path);
-            if (is_writable($dir) || @mkdir($dir, 0755, true)) {
-                if (!is_dir($path)) {
-                    @mkdir($path, 0755, true);
-                }
-                if (is_writable($path)) {
-                    return $path;
-                }
-            }
-        }
-
-        // Use system temp directory as fallback
-        $tempPath = sys_get_temp_dir() . '/blade_cache_' . md5(getcwd());
-        if (!is_dir($tempPath)) {
-            mkdir($tempPath, 0755, true);
-        }
-
-        return $tempPath;
-    }
-
-    protected function ensureCacheDirectory(): void
-    {
+        // The ConfigLoader now guarantees these are valid strings.
+        $viewsPath = $this->config['viewsPath'];
         $cachePath = $this->config['cachePath'];
 
-        // Double check we have a valid cache path
-        if (empty($cachePath)) {
-            throw new \RuntimeException("Cache path cannot be empty");
+        if (!is_dir($viewsPath)) {
+            if (!mkdir($viewsPath, 0755, true)) {
+                throw new \RuntimeException("Cannot create views directory: {$viewsPath}");
+            }
         }
 
-        if (!isset($this->fileExistsCache[$cachePath])) {
-            if (!is_dir($cachePath)) {
-                if (!mkdir($cachePath, 0755, true)) {
-                    throw new \RuntimeException("Cannot create cache directory: {$cachePath}");
-                }
+        if (!is_dir($cachePath)) {
+            if (!mkdir($cachePath, 0755, true)) {
+                throw new \RuntimeException("Cannot create cache directory: {$cachePath}");
             }
-            $this->fileExistsCache[$cachePath] = true;
         }
 
         if (!is_writable($cachePath)) {
             throw new \RuntimeException("Blade cache path is not writable: {$cachePath}");
         }
+
+        // Handle optional component path
+        if (empty($this->config['componentPath'])) {
+            $this->config['componentPath'] = $this->config['viewsPath'] . '/components';
+        }
+        if (!is_dir($this->config['componentPath'])) {
+            @mkdir($this->config['componentPath'], 0755, true);
+        }
     }
 
+    // ... (The rest of the BladeService class remains the same)
+    // You don't need to re-paste everything from applyExtensions() downwards.
+    
     protected function applyExtensions(): void
     {
         if ($this->extensionsLoaded) {
             return;
         }
 
-        // Register built-in directives
         $this->bladeExtension->registerDirectives($this->blade);
         
-        // Register custom directives from config
         if (!empty($this->config['customDirectives'])) {
             foreach ($this->config['customDirectives'] as $name => $callback) {
                 $this->blade->directive($name, $callback);
@@ -190,18 +123,17 @@ class BladeService
         $processedData = $this->processData($mergedData);
 
         try {
-            $result = $this->blade->make($view, $processedData)->render();
-            return $result;
+            return $this->blade->make($view, $processedData)->render();
         } catch (\Throwable $e) {
-            if ($this->config['errorHandling']['showErrors']) {
+            if (!empty($this->config['errorHandling']['showErrors'])) {
                 throw $e;
             }
             
-            if ($this->config['errorHandling']['logErrors']) {
+            if (!empty($this->config['errorHandling']['logErrors'])) {
                 error_log("Blade rendering error in view [{$view}]: {$e->getMessage()}");
             }
             
-            if ($this->config['errorHandling']['errorView']) {
+            if (!empty($this->config['errorHandling']['errorView'])) {
                 try {
                     return $this->blade->make($this->config['errorHandling']['errorView'], [
                         'error' => $e,
