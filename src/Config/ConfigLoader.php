@@ -18,13 +18,10 @@ class ConfigLoader
             return self::$config;
         }
 
-        // Load config from file
         $fileConfig = self::loadConfigFile();
         
-        // Merge with custom config
         self::$config = array_merge($fileConfig, $customConfig);
         
-        // Apply environment overrides if they exist
         self::applyEnvironmentOverrides();
         
         return self::$config;
@@ -41,7 +38,6 @@ class ConfigLoader
             return require $configFile;
         }
         
-        // Return basic defaults if no config file found
         return self::getDefaultConfig();
     }
     
@@ -50,10 +46,9 @@ class ConfigLoader
      */
     protected static function findConfigFile(): ?string
     {
-        // Simple, explicit paths only
         $candidates = [
             getcwd() . '/config/blade.php',
-            dirname(__DIR__, 2) . '/config/blade.php', // From src/Config/ go up to package root
+            dirname(__DIR__, 2) . '/config/blade.php', 
         ];
         
         foreach ($candidates as $candidate) {

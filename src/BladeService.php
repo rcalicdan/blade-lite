@@ -20,7 +20,6 @@ class BladeService
 
     public function __construct(array $customConfig = [])
     {
-        // Load configuration from file with custom overrides
         $this->config = ConfigLoader::load($customConfig);
         $this->bladeExtension = new BladeExtension();
         $this->initialize();
@@ -28,7 +27,6 @@ class BladeService
 
     protected function initialize(): void
     {
-        // Ensure we have valid paths before proceeding
         $this->validatePaths();
         $this->ensureCacheDirectory();
 
@@ -40,7 +38,6 @@ class BladeService
             $container
         );
 
-        // Only add component namespace if path exists and is valid
         if (!empty($this->config['componentPath']) && is_dir($this->config['componentPath'])) {
             $this->blade->addNamespace(
                 $this->config['componentNamespace'],
@@ -48,7 +45,6 @@ class BladeService
             );
         }
         
-        // Add other namespaces if they exist
         foreach ($this->config['namespaces'] as $namespace => $path) {
             if (!empty($path) && is_dir($path)) {
                 $this->blade->addNamespace($namespace, $path);
