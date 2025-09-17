@@ -22,7 +22,7 @@ class BladeService
     {
         // Load configuration from file with custom overrides
         $this->config = ConfigLoader::load($customConfig);
-        $this->bladeExtension = new BladeExtension($this->config);
+        $this->bladeExtension = new BladeExtension();
         $this->initialize();
     }
 
@@ -38,7 +38,6 @@ class BladeService
             $container
         );
 
-        // Register component namespace
         if (is_dir($this->config['componentPath'])) {
             $this->blade->addNamespace(
                 $this->config['componentNamespace'],
@@ -46,7 +45,6 @@ class BladeService
             );
         }
         
-        // Register additional namespaces
         foreach ($this->config['namespaces'] as $namespace => $path) {
             if (is_dir($path)) {
                 $this->blade->addNamespace($namespace, $path);
