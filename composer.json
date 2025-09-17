@@ -1,0 +1,15 @@
+{
+    "name": "rcalicdan/blade-lite",
+    "description": "Framework agnostic version of laravel blade with almost zero setup",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Rcalicdan\\BladeLite\\": "src/"
+        }
+    },
+    "minimum-stability": "dev",
+    "require": {
+        "rcalicdan/blade": "dev-main"
+    }
+}
