@@ -2,7 +2,7 @@
 
 use Rcalicdan\BladeLite\BladeService;
 use Rcalicdan\BladeLite\BladeViewRenderer;
-use Rcalicdan\Ci4Larabridge\Config\ConfigLoader;
+use Rcalicdan\BladeLite\Config\ConfigLoader;
 
 if (!function_exists('blade_view')) {
     function blade_view(?string $view = null, array $data = []): BladeViewRenderer|string

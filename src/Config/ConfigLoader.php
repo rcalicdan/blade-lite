@@ -388,7 +388,7 @@ class ConfigLoader
     /**
      * Create a sample configuration file
      */
-    public static function createSampleConfig(string $path = null): bool
+    public static function createSampleConfig(?string $path = null): bool
     {
         $path = $path ?? (self::findProjectRoot() . '/config/blade.php');
         
