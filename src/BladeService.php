@@ -4,7 +4,7 @@ namespace Rcalicdan\BladeLite;
 
 use Rcalicdan\Blade\Blade;
 use Rcalicdan\Blade\Container as BladeContainer;
-use Rcalicdan\Ci4Larabridge\Config\ConfigLoader;
+use Rcalicdan\BladeLite\Config\ConfigLoader;
 
 /**
  * Enhanced BladeService with file-based configuration support

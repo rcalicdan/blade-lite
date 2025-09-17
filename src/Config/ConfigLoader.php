@@ -1,6 +1,6 @@
 <?php
 
-namespace Rcalicdan\Ci4Larabridge\Config;
+namespace Rcalicdan\BladeLite\Config;
 
 /**
  * Advanced configuration loader with file-based config support
